@@ -2,21 +2,63 @@
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:TwitterHasTagReadingWpf="clr-namespace:KanColleOneDropTw"
+        xmlns:i="clr-namespace:System.Windows.Interactivity;assembly=System.Windows.Interactivity"
+        xmlns:l="http://schemas.livet-mvvm.net/2011/wpf"
         Title="#艦これ版深夜の真剣お絵描き60分一本勝負 ハッシュタグ検索"
-        Width="525"
-        Height="350">
+        Width="650"
+        Height="550">
 	<Window.Resources>
 		<DataTemplate x:Key="itemTemplate">
 			<TwitterHasTagReadingWpf:TweetListItem />
 		</DataTemplate>
 	</Window.Resources>
 	<Grid>
+		<Grid.RowDefinitions>
+			<RowDefinition Height="30" />
+			<RowDefinition Height="100*" />
+		</Grid.RowDefinitions>
+		<StackPanel Grid.Row="0"
+		            HorizontalAlignment="Right"
+		            Orientation="Horizontal">
+			<Button Width="80"
+			        Margin="5,2"
+			        Content="さらに取得">
+				<i:Interaction.Triggers>
+					<i:EventTrigger EventName="Click">
+						<l:LivetCallMethodAction MethodName="Backlog" MethodTarget="{Binding}" />
+					</i:EventTrigger>
+				</i:Interaction.Triggers>
+			</Button>
+		</StackPanel>
 		<ListView x:Name="TweetListView"
+		          Grid.Row="1"
 		          HorizontalAlignment="Stretch"
 		          HorizontalContentAlignment="Stretch"
 		          ItemTemplate="{StaticResource itemTemplate}"
+		          ItemsSource="{Binding Items}"
 		          ScrollViewer.HorizontalScrollBarVisibility="Disabled"
-		          ScrollViewer.VerticalScrollBarVisibility="Visible">
+		          ScrollViewer.VerticalScrollBarVisibility="Visible"
+		          SelectedItem="{Binding SelectedListItem}">
+			<ListView.Resources>
+				<ContextMenu x:Key="ListViewMenu">
+					<MenuItem Header="ブラウザで表示">
+						<i:Interaction.Triggers>
+							<i:EventTrigger EventName="Click">
+								<l:LivetCallMethodAction MethodName="OpenBrowser"
+								                         MethodParameter="{Binding}"
+								                         MethodTarget="{Binding RelativeSource={RelativeSource Mode=FindAncestor,
+								                                                                               AncestorType=Window},
+								                                                Path=DataContext}" />
+							</i:EventTrigger>
+						</i:Interaction.Triggers>
+					</MenuItem>
+				</ContextMenu>
+			</ListView.Resources>
+			<ListView.ItemContainerStyle>
+				<Style TargetType="{x:Type ListViewItem}">
+					<Setter Property="ContextMenu" Value="{StaticResource ListViewMenu}" />
+				</Style>
+			</ListView.ItemContainerStyle>
 			<ListView.ItemsPanel>
 				<ItemsPanelTemplate>
 					<StackPanel Orientation="Vertical" />

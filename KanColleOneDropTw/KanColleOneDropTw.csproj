@@ -74,6 +74,7 @@
     <Compile Include="TweetListItem.xaml.cs">
       <DependentUpon>TweetListItem.xaml</DependentUpon>
     </Compile>
+    <Compile Include="WorkspaceViewModel.cs" />
     <Page Include="MainWindow.xaml">
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
