@@ -1,12 +1,19 @@
 ﻿using Livet;
+using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Net;
 using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Media.Imaging;
 using TweetSharp;
+using ImpromptuInterface;
+using TumblrApi;
+using System.Reflection;
+using System.Text.RegularExpressions;
+using System.ComponentModel;
 
 namespace KanColleOneDropTw
 {
@@ -19,11 +26,16 @@ namespace KanColleOneDropTw
 		// twitterConsumerSecret : Keyに対するパスワード
 		// AccessToken           : API利用者側が上記のカスタマーキーを使用する際に発行されるトークン
 		// AccessTokenSecret     : AccessTokenのパスワード
+		// tumblrCustomerKey     : TumblrAPIを使用するカスタマーキー
 		static string twitterConsumerKey = "*********";
 		static string twitterConsumerSecret = "*********";
 		static string AccessToken = "*********";
 		static string AccessTokenSecret = "*********";
+		static string tumblrCustomerKey = "*********";
 
+		// Tumblrからも画像を取得する場合は、tumblrCustomerKeyにAPIを利用するためのキーを入力してこのフラグをTrueにします
+		static bool UseTumblrApiFlag = false;
+		
 		//=====================================================================
 		#region [公開メソッド]
 		//=====================================================================
@@ -102,6 +114,66 @@ namespace KanColleOneDropTw
 		#region [非公開メンバ]
 		//=====================================================================
 		/// <summary>
+		/// Tumblr専用ですね
+		/// </summary>
+		/// <param name="mediaUrl"></param>
+		/// <returns></returns>
+		string ExcuseTumblrImageUrl(string mediaUrl)
+		{
+			string tumblrBlogHostName;
+			string tumblrBlogPostIdText;
+
+			Regex rgxTmbrShortner = new Regex("^http://tmblr.co/");
+			Regex rgxSegumentaion = new Regex("^/post/([\\d]+)");
+
+			if (rgxTmbrShortner.IsMatch(mediaUrl))
+			{
+				var url = ExpectShortener(mediaUrl);
+				tumblrBlogHostName = url.DnsSafeHost;
+
+				var match = rgxSegumentaion.Match(url.LocalPath);
+				if (!match.Success) return string.Empty;
+				tumblrBlogPostIdText = match.Groups[1].Value;
+			}
+			else
+			{
+				return string.Empty;
+			}
+
+
+			WebClient web = new WebClient();
+			string urlText = string.Format("http://api.tumblr.com/v2/blog/{0}/posts?api_key={1}&type=photo&id={2}",
+				tumblrBlogHostName,
+				tumblrCustomerKey,
+				tumblrBlogPostIdText);
+
+			try
+			{
+				var response = web.DownloadString(urlText);
+				var tumblerRp = JsonConvert.DeserializeObject(response);
+				var itm = tumblerRp.ActLike<IPostsApi>();
+				var photo1 = itm.response.posts[0].photos.FirstOrDefault();
+
+				// JArrayはLINQを実行できないので、手動で配列に置き換える｡ﾟ(ﾟ´Д｀ﾟ)ﾟ｡
+				// ついでに言うと、ToArrayも実行できません
+				var s = new List<IAltSizes>();
+				foreach (var p in photo1.alt_sizes)
+				{
+					s.Add(p);
+				}
+
+				var size1 = s.OrderByDescending(p => p.width + p.height).FirstOrDefault();
+
+				return size1.url;
+			}
+			catch (Exception expr)
+			{
+				Debug.WriteLine(expr);
+				return string.Empty;
+			}
+		}
+
+		/// <summary>
 		///     保存先ディレクトリの作成と指定
 		/// </summary>
 		void InitializeDirectory()
@@ -112,6 +184,60 @@ namespace KanColleOneDropTw
 			ApplicationDirectoryPath = System.IO.Path.Combine(personalDirectoryPath, @"KanColleOneDropTw");
 			System.IO.Directory.CreateDirectory(ApplicationDirectoryPath);
 		}
+
+		/// <summary>
+		/// 
+		/// </summary>
+		/// <param name="sender"></param>
+		/// <param name="e"></param>
+		void OnLoadMediaBackgroundWorker(object sender, DoWorkEventArgs e)
+		{
+			var item = e.Argument as TweetListItemData;
+			var worker = sender as BackgroundWorker;
+
+			string mediaUrl = string.Empty;
+
+			var media = item.Status.Entities.Media.FirstOrDefault();
+			if (media != null)
+			{
+				var photo = item.Status.Entities.Media.FirstOrDefault();
+				if (photo != null)
+				{
+					mediaUrl = photo.MediaUrl;
+				}
+			}
+			else
+			{
+				if (UseTumblrApiFlag)
+				{
+					// Tumblerチェック
+					var url = item.Status.Entities.Urls.FirstOrDefault();
+					if (url != null)
+					{
+						mediaUrl = ExcuseTumblrImageUrl(url.ExpandedValue);
+					}
+				}
+			}
+
+			item.MediaUrl = mediaUrl;
+
+			if (!string.IsNullOrEmpty(mediaUrl))
+				SaveMediaFile(mediaUrl, item.Status.Id);
+
+			
+			DispatcherHelper.UIDispatcher.Invoke(() =>
+			{
+				// ここはユーザーインターフェーススレッドでの実行なので、サーバーが重いとアプリの反応が無くなります
+
+				if (!string.IsNullOrEmpty(mediaUrl))
+				{
+					item.PhotoImage = new BitmapImage(new Uri(mediaUrl));
+				}
+
+				item.AvaterImage = new BitmapImage(new Uri(item.Status.User.ProfileImageUrl));
+			});
+		}
+
 
 		/// <summary>
 		/// 
@@ -144,21 +270,10 @@ namespace KanColleOneDropTw
 						var i = new TweetListItemData(tweet);
 						this.Items.Add(i);
 
-						// BackgroundWorkerを使えばいいのだけれど。
-						DispatcherHelper.UIDispatcher.Invoke(() =>
-						{
-							if (tweet.Entities.Count() > 0)
-							{
-								var photo = tweet.Entities.Media.FirstOrDefault();
-								if (photo != null)
-								{
-									SaveMediaFile(photo.MediaUrl, tweet.Id);
-									i.PhotoImage = new BitmapImage(new Uri(photo.MediaUrl));
-								}
-							}
-
-							i.AvaterImage = new BitmapImage(new Uri(tweet.User.ProfileImageUrl));
-						});
+						var bgw = new BackgroundWorker();
+						bgw.DoWork += OnLoadMediaBackgroundWorker;
+						bgw.RunWorkerAsync(i);
+						
 						lastTweetId = tweet.Id;
 					}
 				}
@@ -175,9 +290,97 @@ namespace KanColleOneDropTw
 			var uri = new Uri(remoteMediaFileUrl);
 			var localFileName = tweetId + System.IO.Path.GetExtension(uri.LocalPath);
 
-			WebClient webClient = new WebClient();
-			webClient.DownloadFile(remoteMediaFileUrl, System.IO.Path.Combine(ApplicationDirectoryPath, localFileName));
+			using (WebClient webClient = new WebClient())
+			{
+				webClient.DownloadFile(remoteMediaFileUrl, System.IO.Path.Combine(ApplicationDirectoryPath, localFileName));
+			}
+		}
+
+		/// <summary>
+		/// 
+		/// </summary>
+		/// <param name="shortenerUrl"></param>
+		/// <returns></returns>
+		Uri ExpectShortener(string shortenerUrl)
+		{
+			using (WebClient wc = new WebClient())
+			{
+				var r = wc.DownloadString(shortenerUrl);
+
+				var info = typeof(WebClient).GetField("m_WebResponse", BindingFlags.GetField | BindingFlags.NonPublic | BindingFlags.Instance);
+				var response = info.GetValue(wc) as HttpWebResponse;
+				return response.ResponseUri;
+			}
 		}
 		#endregion
+
+		
+	}
+
+	
+}
+
+// TumblrApiのモデル構造をPROXYするインターフェース
+// 必要そうなものしか実装していません。
+namespace TumblrApi
+{
+	public interface IApiBase
+	{
+		IMeta meta { get; }
+	}
+
+	public interface IPostsApi : IApiBase
+	{
+		IPostsResponse response { get; }
+	}
+
+	public interface IPostsResponse
+	{
+		IBlog blog { get; }
+		IList<IPost> posts { get; }
+	}
+
+	public interface IMeta
+	{
+		int status { get; }
+		string msg { get; }
+	}
+
+	public interface IBlog
+	{
+		string title { get; }
+		string name { get; }
+		string url { get; }
+	}
+
+	public interface IPost
+	{
+		string blog_name { get; }
+		long id { get; }
+		string post_url { get; }
+		string type { get; }
+
+		/// <summary>
+		/// photo
+		/// </summary>
+		string caption { get; }
+
+		/// <summary>
+		/// photo
+		/// </summary>
+		IList<IPhoto> photos { get; }
+	}
+
+	public interface IPhoto
+	{
+		string caption { get; }
+		ICollection<IAltSizes> alt_sizes { get; }
+	}
+
+	public interface IAltSizes
+	{
+		int width { get; }
+		int height { get; }
+		string url { get; }
 	}
 }

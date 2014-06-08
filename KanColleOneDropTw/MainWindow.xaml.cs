@@ -34,7 +34,7 @@ namespace KanColleOneDropTw
 		}
 	}
 
-	public class TweetListItemData
+	public class TweetListItemData : NotificationObject
 	{
 		public TweetListItemData(TwitterStatus model)
 		{
@@ -50,7 +50,50 @@ namespace KanColleOneDropTw
 		public DateTime CreateDateJp { get { return this.TwitterModel.CreatedDate.AddHours(9); } }
 		public string TweetText { get { return this.TwitterModel.Text; } }
 
-		public BitmapImage PhotoImage { get; set; }
-		public BitmapImage AvaterImage { get; set; }
+		string _MediaUrl;
+		public string MediaUrl
+		{
+			get { return _MediaUrl; }
+			set { _MediaUrl = value; }
+		}
+
+		#region PhotoImage変更通知プロパティ
+		private BitmapImage _PhotoImage;
+		/// <summary>
+		/// 
+		/// </summary>
+		public BitmapImage PhotoImage
+		{
+			get
+			{ return _PhotoImage; }
+			set
+			{ 
+				if (_PhotoImage == value)
+					return;
+				_PhotoImage = value;
+				RaisePropertyChanged();
+			}
+		}
+		#endregion
+
+		#region AvaterImage変更通知プロパティ
+		private BitmapImage _AvaterImage;
+		/// <summary>
+		/// 
+		/// </summary>
+		public BitmapImage AvaterImage
+		{
+			get
+			{ return _AvaterImage; }
+			set
+			{ 
+				if (_AvaterImage == value)
+					return;
+				_AvaterImage = value;
+				RaisePropertyChanged();
+			}
+		}
+		#endregion
+
 	}
 }
