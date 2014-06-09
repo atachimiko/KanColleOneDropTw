@@ -14,6 +14,7 @@ using TumblrApi;
 using System.Reflection;
 using System.Text.RegularExpressions;
 using System.ComponentModel;
+using System.Timers;
 
 namespace KanColleOneDropTw
 {
@@ -50,6 +51,14 @@ namespace KanColleOneDropTw
 		/// <summary>
 		/// 
 		/// </summary>
+		public async void InitRenderer()
+		{
+			await Run();
+		}
+
+		/// <summary>
+		/// 
+		/// </summary>
 		public void OpenBrowser(TweetListItemData item)
 		{
 			if (item == null) return;
@@ -57,6 +66,18 @@ namespace KanColleOneDropTw
 			string uriText = string.Format("https://twitter.com/{0}/status/{1}", tw.User.ScreenName, tw.Id);
 			System.Diagnostics.Process.Start(uriText);
 		}
+
+		/// <summary>
+		/// 
+		/// </summary>
+		public async void Reload()
+		{
+			this._RcentMode = true;
+			this._Timer.Stop();
+			await Run();
+			this._Timer.Start();
+		}
+
 		#endregion
 
 		//=====================================================================
@@ -69,7 +90,11 @@ namespace KanColleOneDropTw
 			service = new TwitterService(twitterConsumerKey, twitterConsumerSecret);
 			service.AuthenticateWith(AccessToken, AccessTokenSecret);
 
-			Run();
+			_RcentMode = true;
+			_Timer = new Timer();
+			_Timer.Interval = 60000;
+			_Timer.Elapsed += _Timer_Elapsed;
+			_Timer.Start();
 		}
 		#endregion
 
@@ -108,6 +133,8 @@ namespace KanColleOneDropTw
 		long lastTweetId = 0L;
 		TwitterService service;
 		string ApplicationDirectoryPath;
+		Timer _Timer;
+		bool _RcentMode = false;
 		#endregion
 
 		//=====================================================================
@@ -242,41 +269,51 @@ namespace KanColleOneDropTw
 		/// <summary>
 		/// 
 		/// </summary>
-		void Run()
+		async Task Run()
 		{
-			SearchOptions searchOption = new SearchOptions();
-			searchOption.Q = "-RT #艦これ版深夜の真剣お絵描き60分一本勝負";
-			searchOption.Resulttype = TwitterSearchResultType.Recent;
-			searchOption.Count = 11;
-			searchOption.Lang = "ja";
-
-			int skipNum = 0;
-			if (lastTweetId != 0L)
+			await Task.Factory
+				.StartNew(() =>
 			{
-				searchOption.MaxId = lastTweetId;
-				skipNum = 1;
-			}
+				SearchOptions searchOption = new SearchOptions();
+				searchOption.Q = "-RT #艦これ版深夜の真剣お絵描き60分一本勝負";
+				searchOption.Resulttype = TwitterSearchResultType.Recent;
+				searchOption.Count = 11;
+				searchOption.Lang = "ja";
 
-			this.Items.Clear();
-			this.SelectedListItem = null;
+				int skipNum = 0;
 
-			IAsyncResult result = service.Search(searchOption, (searchResult, response) =>
-			{
-				if (response.StatusCode == HttpStatusCode.OK)
+				if (!this._RcentMode)
 				{
-					// RxとLINQを使えばもっとスマートだけれど。
-					foreach (var tweet in searchResult.Statuses.Skip(skipNum))
+					if (lastTweetId != 0L)
 					{
-						var i = new TweetListItemData(tweet);
-						this.Items.Add(i);
-
-						var bgw = new BackgroundWorker();
-						bgw.DoWork += OnLoadMediaBackgroundWorker;
-						bgw.RunWorkerAsync(i);
-						
-						lastTweetId = tweet.Id;
+						searchOption.MaxId = lastTweetId;
+						skipNum = 1;
 					}
 				}
+
+				this.Items.Clear();
+				this.SelectedListItem = null;
+
+				IAsyncResult result = service.Search(searchOption, (searchResult, response) =>
+				{
+					if (response.StatusCode == HttpStatusCode.OK)
+					{
+						// RxとLINQを使えばもっとスマートだけれど。
+						foreach (var tweet in searchResult.Statuses.Skip(skipNum))
+						{
+							var i = new TweetListItemData(tweet);
+							this.Items.Add(i);
+
+							var bgw = new BackgroundWorker();
+							bgw.DoWork += OnLoadMediaBackgroundWorker;
+							bgw.RunWorkerAsync(i);
+
+							lastTweetId = tweet.Id;
+						}
+					}
+				});
+
+				//result.AsyncWaitHandle.WaitOne();
 			});
 		}
 
@@ -294,6 +331,20 @@ namespace KanColleOneDropTw
 			{
 				webClient.DownloadFile(remoteMediaFileUrl, System.IO.Path.Combine(ApplicationDirectoryPath, localFileName));
 			}
+		}
+
+		/// <summary>
+		/// 
+		/// </summary>
+		/// <param name="sender"></param>
+		/// <param name="e"></param>
+		void _Timer_Elapsed(object sender, ElapsedEventArgs e)
+		{
+			_Timer.Stop();
+
+			Run();
+
+			_Timer.Start();
 		}
 
 		/// <summary>

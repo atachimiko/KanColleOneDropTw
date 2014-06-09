@@ -12,6 +12,13 @@
 			<TwitterHasTagReadingWpf:TweetListItem />
 		</DataTemplate>
 	</Window.Resources>
+
+	<i:Interaction.Triggers>
+		<i:EventTrigger EventName="ContentRendered">
+			<l:LivetCallMethodAction MethodName="InitRenderer" MethodTarget="{Binding}" />
+		</i:EventTrigger>
+	</i:Interaction.Triggers>
+
 	<Grid>
 		<Grid.RowDefinitions>
 			<RowDefinition Height="30" />
@@ -20,6 +27,16 @@
 		<StackPanel Grid.Row="0"
 		            HorizontalAlignment="Right"
 		            Orientation="Horizontal">
+			<Button Width="80"
+			        Margin="5,2"
+			        Content="更新">
+				<i:Interaction.Triggers>
+					<i:EventTrigger EventName="Click">
+						<l:LivetCallMethodAction MethodName="Reload" MethodTarget="{Binding}" />
+					</i:EventTrigger>
+				</i:Interaction.Triggers>
+			</Button>
+
 			<Button Width="80"
 			        Margin="5,2"
 			        Content="さらに取得">
