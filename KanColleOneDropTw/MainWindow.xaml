@@ -6,7 +6,9 @@
         xmlns:l="http://schemas.livet-mvvm.net/2011/wpf"
         Title="#艦これ版深夜の真剣お絵描き60分一本勝負 ハッシュタグ検索"
         Width="650"
-        Height="550">
+        Height="550"
+		RenderOptions.BitmapScalingMode="HighQuality"
+        UseLayoutRounding="True">
 	<Window.Resources>
 		<DataTemplate x:Key="itemTemplate">
 			<TwitterHasTagReadingWpf:TweetListItem />

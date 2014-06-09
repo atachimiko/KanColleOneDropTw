@@ -58,11 +58,11 @@ namespace KanColleOneDropTw
 		}
 
 		#region PhotoImage変更通知プロパティ
-		private BitmapImage _PhotoImage;
+		private Image _PhotoImage;
 		/// <summary>
 		/// 
 		/// </summary>
-		public BitmapImage PhotoImage
+		public Image PhotoImage
 		{
 			get
 			{ return _PhotoImage; }
@@ -77,11 +77,11 @@ namespace KanColleOneDropTw
 		#endregion
 
 		#region AvaterImage変更通知プロパティ
-		private BitmapImage _AvaterImage;
+		private Image _AvaterImage;
 		/// <summary>
 		/// 
 		/// </summary>
-		public BitmapImage AvaterImage
+		public Image AvaterImage
 		{
 			get
 			{ return _AvaterImage; }

@@ -16,16 +16,14 @@
 			<RowDefinition Height="25" />
 			<RowDefinition Height="50*" />
 		</Grid.RowDefinitions>
-		<Image Grid.RowSpan="2"
-		       Margin="5"
-		       RenderOptions.BitmapScalingMode="HighQuality"
-		       Source="{Binding PhotoImage}" />
-		<Image Grid.RowSpan="2"
-		       Grid.Column="1"
-		       Margin="5"
-		       VerticalAlignment="Top"
-		       RenderOptions.BitmapScalingMode="HighQuality"
-		       Source="{Binding AvaterImage}" />
+		<ContentPresenter Grid.RowSpan="2"
+		                  Margin="5"
+		                  Content="{Binding PhotoImage}" />
+		<ContentPresenter Grid.RowSpan="2"
+		                  Grid.Column="1"
+		                  Margin="5"
+		                  VerticalAlignment="Top"
+		                  Content="{Binding AvaterImage}" />
 		<Label Grid.Column="2" Content="{Binding BDName}" />
 		<Grid Grid.Row="1" Grid.Column="2">
 			<Grid.RowDefinitions>

@@ -15,6 +15,9 @@ using System.Reflection;
 using System.Text.RegularExpressions;
 using System.ComponentModel;
 using System.Timers;
+using System.IO;
+using System.Windows.Controls;
+using System.Windows.Media;
 
 namespace KanColleOneDropTw
 {
@@ -201,6 +204,23 @@ namespace KanColleOneDropTw
 		}
 
 		/// <summary>
+		/// 
+		/// </summary>
+		/// <param name="uri"></param>
+		/// <returns></returns>
+		private Task<MemoryStream> LoadImageAsync(Uri uri)
+		{
+			return Task.Run(() =>
+			{
+				using (var wc = new WebClient())
+				{
+					var bytes = wc.DownloadData(uri);
+					return new MemoryStream(bytes);
+				}
+			});
+		}
+
+		/// <summary>
 		///     保存先ディレクトリの作成と指定
 		/// </summary>
 		void InitializeDirectory()
@@ -217,7 +237,7 @@ namespace KanColleOneDropTw
 		/// </summary>
 		/// <param name="sender"></param>
 		/// <param name="e"></param>
-		void OnLoadMediaBackgroundWorker(object sender, DoWorkEventArgs e)
+		async void OnLoadMediaBackgroundWorker(object sender, DoWorkEventArgs e)
 		{
 			var item = e.Argument as TweetListItemData;
 			var worker = sender as BackgroundWorker;
@@ -251,20 +271,48 @@ namespace KanColleOneDropTw
 			if (!string.IsNullOrEmpty(mediaUrl))
 				SaveMediaFile(mediaUrl, item.Status.Id);
 
-			
-			DispatcherHelper.UIDispatcher.Invoke(() =>
+			if (!string.IsNullOrEmpty(mediaUrl))
 			{
-				// ここはユーザーインターフェーススレッドでの実行なので、サーバーが重いとアプリの反応が無くなります
-
-				if (!string.IsNullOrEmpty(mediaUrl))
+				using (var ioMediaImage = await LoadImageAsync(new Uri(mediaUrl)))
 				{
-					item.PhotoImage = new BitmapImage(new Uri(mediaUrl));
+
+					BitmapImage bi = new BitmapImage();
+					RenderOptions.SetBitmapScalingMode(bi, BitmapScalingMode.HighQuality);
+					bi.BeginInit();
+					bi.CacheOption = BitmapCacheOption.OnLoad;
+					bi.StreamSource = ioMediaImage;
+					bi.EndInit();
+					bi.Freeze();
+
+					DispatcherHelper.UIDispatcher.Invoke(() =>
+					{
+						var image = new Image();
+						image.Source = bi;
+						item.PhotoImage = image;
+					});
 				}
+			}
 
-				item.AvaterImage = new BitmapImage(new Uri(item.Status.User.ProfileImageUrl));
-			});
+			
+			using (var ioProfileImage = await LoadImageAsync(new Uri(item.Status.User.ProfileImageUrl)))
+			{
+				BitmapImage bi = new BitmapImage();
+				RenderOptions.SetBitmapScalingMode(bi, BitmapScalingMode.HighQuality);
+				bi.BeginInit();
+				bi.CacheOption = BitmapCacheOption.OnLoad;
+				bi.StreamSource = ioProfileImage;
+				bi.EndInit();
+				bi.Freeze();
+					
+				DispatcherHelper.UIDispatcher.Invoke(() =>
+				{
+					var image = new Image();
+					image.Source = bi;
+					item.AvaterImage = image;
+				});
+				
+			}
 		}
-
 
 		/// <summary>
 		/// 
