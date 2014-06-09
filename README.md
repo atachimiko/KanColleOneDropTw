@@ -9,6 +9,11 @@ KanColleOneDropTw
 TwitterAPIを使用するためのカスタマーキーなどは各自取得してください。
 クライアントのためのトークン生成も各自行ってください。
 
+TumblerAPIに対応しました。
+TumblerAPIを使用するには下記のサイトからTumblerAppの登録をしてCustomerKeyを取得してください。
+
+https://www.tumblr.com/oauth/apps
+
 ## サポート ##
 このパッケージの利用の結果生じた損害について、一切責任を負いません。
 自己責任でお願いします。
@@ -43,3 +48,5 @@ OAuthAccessToken access = service.GetAccessToken(requestToken, verify);
 
 TwitterAPIを実際に使うには、「カスタマーキー、カスタマーキーのパスワード、アクセストークン、アクセストークンのパスワード」の4つのキー文字列が必要です。
 
+## コンタクト ##
+[@atachimiko](https://twitter.com/atachimiko)
